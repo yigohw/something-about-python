@@ -19,16 +19,18 @@ class Translator:
 		#tcol = '\|.+' # how many columes are in the table? must match
 
 		# search
-		link = '\[.*\]\(.+\)'
-		img = '\!\[.*\]\(.+\)'
-		# autoLink = '<.+>' # it is crash with the html tag
+		link = '\[.*?\]\(.+?\)'
+		img = '\!\[.*?\]\(.+?\)'
+		# autoLink = '<.+?>' # it is crash with the html tag
 
-		strong = '\*\* .+ \*\*'
-		em = '\* .+ \*'
-		code = '`.+`'
+		strong = '\*\* .+? \*\*'
+		em = '\* .+? \*'
+		code = '`.+?`'
 	
 	def __init__(self, input, output):
 		self.input = input
+		if output[-5:] != '.html':
+			output += '.html'
 		self.output = output
 		self.go()
 	
@@ -54,7 +56,7 @@ class Translator:
 		while i < len(self.lines):
 			line = self.lines[i][:-1]
 			# print(line)
-			newLine = line + '\n'
+			newLine = line
 			
 			#print(type(md.header))
 			if re.match(md.header, line):
@@ -81,10 +83,12 @@ class Translator:
 					newLine = '<p><code>' + codes[0] + '</code></p>\n'
 					for code in codes[1:]:
 						newLine += '<p><code>' + code + '</code></p>\n'
-						
+				else:
+					newLine = '<p>' + newLine + '</p>\n'
+					
 			else:
 				line = self.searchSomething(line)
-				newLine = line + '\n'
+				newLine = line
 				
 				if re.match(md.quote, line):
 					quotes = [line[2:]]
@@ -186,25 +190,42 @@ class Translator:
 								'>' + body[j] + '</th>\n'
 							newLine += '</tr>\n'
 							
-						newLine += '</tbody>\n</table>\n' 
-				
+						newLine += '</tbody>\n</table>\n'
+					else:
+						newLine = '<p>' + newLine + '</p>\n'
+					
 				else:
-					newLine = '<p>' + newLine[:-1] + '</p>\n'
+					newLine = '<p>' + newLine + '</p>\n'
 
 			self.newLines.append(newLine + '\n')
 			i += 1
 		
 	def searchSomething(self, line):
+		if line == '':
+			return line
+			
 		import re
 		md = self.MDgrammerRE()
 		#print(line)
 		
-		if re.search(md.code, line):
+		codeRE = '<code>.+?</code>'
+		codeRange = ('', '')
+		
+		if re.search(codeRE, line):
+			codeRange = re.search(codeRE, line).span()
+			
+		if codeRange != ('', ''):
+			#print(codeRange)
+			return self.searchSomething(line[:codeRange[0]]) +\
+			line[codeRange[0]:codeRange[1]] +\
+			self.searchSomething(line[codeRange[1]:])
+			
+		elif re.search(md.code, line):
 			range = re.search(md.code, line).span()
 			
 			code = '<code>' + line[range[0]:range[1]][1:-1] + '</code>'
 			
-			line = re.sub(md.code, code, line)
+			line = re.sub(md.code, code, line, 1)
 		
 		elif re.search(md.img, line):
 			range = re.search(md.img, line).span()
@@ -215,7 +236,7 @@ class Translator:
 			a = '<div><img src="' + src + '" alt="' + alt +\
 			'"><br><div>' + alt + '</div></div>'
 			
-			line = re.sub(md.img, a, line)
+			line = re.sub(md.img, a, line, 1)
 			
 		elif re.search(md.link, line):
 			range = re.search(md.link, line).span()
@@ -225,7 +246,7 @@ class Translator:
 			#print(text)
 			
 			a = '<a href="' + href + '" target="_blank">' + text + '</a>'
-			line = re.sub(md.link, a, line)
+			line = re.sub(md.link, a, line, 1)
 			
 		# elif re.search(md.autoLink, line):
 			# range = re.search(md.autoLink, line).span()
@@ -233,30 +254,26 @@ class Translator:
 			# href = line[range[0]:range[1]][1:-1]
 			
 			# a = '<a href="' + href + '" target="_blank"/>'
-			# line = re.sub(md.autoLink, a, line)
+			# line = re.sub(md.autoLink, a, line, 1)
 			
 		elif re.search(md.strong, line):
 			range = re.search(md.strong, line).span()
 			
 			strong = '<strong>' + line[range[0]:range[1]][3:-3] + '</strong>'
 			
-			line = re.sub(md.strong, strong, line)
+			line = re.sub(md.strong, strong, line, 1)
 		
 		elif re.search(md.em, line):
 			range = re.search(md.em, line).span()
 			
 			em = '<em>' + line[range[0]:range[1]][2:-2] + '</em>'
 			
-			line = re.sub(md.em, em, line)
+			line = re.sub(md.em, em, line, 1)
 		
 		else:
 			#print(line)
 			return line
 			
-		line = self.searchSomething(line)
-		return line
+		return self.searchSomething(line)
 	
-trans = Translator('1.md', '1.html')
-
-	
-
+trans = Translator('1.md', '1')
